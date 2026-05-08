@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VRP Lab WebUI</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #f4f7fb; color:#1e293b; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px; }
+    .card { background:#fff; border-radius:16px; padding:20px; box-shadow:0 8px 24px rgba(16,24,40,.08); margin-bottom:16px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    select,input,button { padding:10px 12px; border-radius:10px; border:1px solid #d0d7e2; }
+    button { background:#2563eb; color:#fff; border:none; font-weight:600; cursor:pointer; }
+    button:disabled { background:#93c5fd; cursor:not-allowed; }
+    .log { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:12px; min-height:120px; font-family: ui-monospace, monospace; }
+    table { width:100%; border-collapse: collapse; }
+    th,td { text-align:left; padding:8px; border-bottom:1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+<div id="app" class="wrap">
+  <div class="card">
+    <h2>🚚 VRP Lab 实验控制台</h2>
+    <div class="row">
+      <label>实例</label>
+      <select v-model="selectedPath"><option v-for="i in instances" :value="i.path">{{i.name}}</option></select>
+      <label><input type="checkbox" value="pyvrp" v-model="solvers"> PyVRP</label>
+      <label><input type="checkbox" value="ortools" v-model="solvers"> OR-Tools</label>
+      <input v-model.number="maxRuntime" type="number" min="1" placeholder="max runtime"/>
+      <button :disabled="running || !selectedPath" @click="run">运行实例</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>运行日志</h3>
+    <div class="log"><div v-for="line in logs">{{line}}</div></div>
+  </div>
+  <div class="card" v-if="results.length">
+    <h3>结果</h3>
+    <table><thead><tr><th>Solver</th><th>Objective</th><th>Runtime(s)</th><th>Status</th></tr></thead>
+      <tbody><tr v-for="r in results"><td>{{r.solver}}</td><td>{{r.objective}}</td><td>{{Number(r.runtime_sec).toFixed(3)}}</td><td>{{r.status}}</td></tr></tbody></table>
+  </div>
+  <div class="card"><h3>收敛曲线</h3><div id="plot" style="height:360px"></div></div>
+</div>
+<script>
+const { createApp } = Vue
+createApp({
+  data(){return {instances:[],selectedPath:'',solvers:['pyvrp','ortools'],maxRuntime:30,running:false,logs:[],results:[]}},
+  mounted(){ fetch('/api/instances').then(r=>r.json()).then(data=>{this.instances=data; if(data.length) this.selectedPath=data[0].path}) },
+  methods:{
+    log(msg){ this.logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`) },
+    run(){
+      this.running=true; this.logs=[]; this.results=[]; Plotly.newPlot('plot',[],{title:'Convergence'})
+      const ws = new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/run`)
+      ws.onopen = ()=> ws.send(JSON.stringify({instance_path:this.selectedPath,solvers:this.solvers,max_runtime:this.maxRuntime}))
+      ws.onmessage = (evt)=>{
+        const data = JSON.parse(evt.data)
+        if(['start','progress','warning','error'].includes(data.type)) this.log(data.message || `${data.type}: ${data.instance||''}`)
+        if(data.type==='solver_result'){
+          this.results.push(data)
+          if((data.iteration_costs||[]).length){
+            const x = data.iteration_costs.map(p=>p[0]); const y = data.iteration_costs.map(p=>p[1])
+            Plotly.addTraces('plot',{x,y,mode:'lines',name:data.solver})
+          }
+        }
+        if(data.type==='done'){ this.log(`完成，结果已保存：${data.artifacts.csv}`); this.running=false; ws.close() }
+      }
+      ws.onclose = ()=>{ this.running=false }
+    }
+  }
+}).mount('#app')
+</script>
+</body></html>

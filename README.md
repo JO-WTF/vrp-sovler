@@ -8,6 +8,7 @@ A modular experiment framework for CVRP/CVRPTW research with:
 - Batch experiments with structured CSV outputs
 - Convergence logging and visualization
 - Streamlit dashboard for interactive comparison
+- **Vue-based WebUI with WebSocket live progress updates**
 
 ## Quick start
 
@@ -20,6 +21,24 @@ vrp-batch --config configs/experiments.yaml
 vrp-dashboard --results results/runs/latest/results.csv
 ```
 
+## WebUI (Vue + WebSocket)
+
+Run:
+
+```bash
+vrp-webui
+```
+
+Then open `http://localhost:8765`.
+
+Features:
+- Select local instance files from `data/`.
+- Choose solvers (PyVRP / OR-Tools).
+- Run one instance interactively.
+- Receive live WebSocket progress/events.
+- View result table and convergence curves.
+- Persist outputs to `outputs/webui/results.csv` and `outputs/webui/convergence.jsonl`.
+
 ## Project layout
 
 - `src/vrp_lab/data/`: ingestion + normalization
@@ -28,6 +47,7 @@ vrp-dashboard --results results/runs/latest/results.csv
 - `src/vrp_lab/runner/`: batch execution and metrics persistence
 - `src/vrp_lab/analysis/`: convergence and performance plots
 - `src/vrp_lab/dashboard/`: Streamlit dashboard
+- `src/vrp_lab/webui/`: FastAPI backend + Vue single-page frontend
 
 ## Notes
 

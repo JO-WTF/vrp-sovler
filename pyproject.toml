@@ -16,12 +16,15 @@ dependencies = [
   "plotly>=5.20",
   "streamlit>=1.35",
   "requests>=2.31",
+  "fastapi>=0.111",
+  "uvicorn>=0.30",
 ]
 
 [project.scripts]
 vrp-bench = "vrp_lab.cli.fetch:main"
 vrp-batch = "vrp_lab.cli.batch:main"
 vrp-dashboard = "vrp_lab.dashboard.app:main"
+vrp-webui = "vrp_lab.webui.server:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
