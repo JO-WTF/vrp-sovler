@@ -1,0 +1,8 @@
+instances:
+  - source: vrplib
+    path: data/raw/vrplib/A-n32-k5.vrp
+  - source: solomon
+    path: data/raw/solomon/C101.txt
+solvers: [pyvrp, ortools]
+max_runtime: 30
+output_dir: results/runs/latest

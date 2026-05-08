@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vrp-lab"
+version = "0.1.0"
+description = "VRP experiment framework with PyVRP and OR-Tools"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas>=2.0",
+  "numpy>=1.24",
+  "pyyaml>=6.0",
+  "matplotlib>=3.7",
+  "plotly>=5.20",
+  "streamlit>=1.35",
+  "requests>=2.31",
+]
+
+[project.scripts]
+vrp-bench = "vrp_lab.cli.fetch:main"
+vrp-batch = "vrp_lab.cli.batch:main"
+vrp-dashboard = "vrp_lab.dashboard.app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
