@@ -31,3 +31,12 @@ npm run dev
 - `POST /api/runs/{run_id}/stop`
 - `GET /api/runs/{run_id}`
 - `WS /ws/{run_id}`
+
+
+## 本地调试求解（不启动前端/后端）
+
+直接在 `local_run.py` 顶部修改 `DATASET` / `INSTANCE` / `TIME_LIMIT_S` / `POPULATION_SIZE`，然后运行：
+
+```bash
+python local_run.py
+```
