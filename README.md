@@ -13,7 +13,7 @@ bash scripts/run_local.sh
 
 ### Backend (0.0.0.0:8082)
 ```bash
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn pydantic vrplib
 uvicorn backend.main:app --host 0.0.0.0 --port 8082 --reload
 ```
 
