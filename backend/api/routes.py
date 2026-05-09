@@ -48,11 +48,13 @@ def datasets() -> dict:
 async def create_run(config: ExperimentConfig) -> dict:
     run_id = str(uuid.uuid4())
     logger.info("create run run_id=%s dataset=%s instances=%s", run_id, config.dataset, config.instances)
-    RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": []}
+    RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": [], "next_seq": 1}
 
     async def emit(event_type: str, payload: dict[str, Any]) -> None:
         logger.info("run_id=%s event=%s payload=%s", run_id, event_type, payload)
-        evt = {"type": event_type, "payload": payload}
+        seq = RUNS[run_id]["next_seq"]
+        RUNS[run_id]["next_seq"] += 1
+        evt = {"seq": seq, "type": event_type, "payload": payload}
         RUNS[run_id]["events"].append(evt)
         await bus.publish(run_id, evt)
 
