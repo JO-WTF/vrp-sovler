@@ -1,16 +1,22 @@
 {
   "name": "vrp-lab-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
+    "dev": "vite --host 0.0.0.0 --port 7998",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 7998"
   },
   "dependencies": {
     "axios": "^1.7.2",
     "plotly.js-dist-min": "^2.35.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-plotly.js": "^2.6.0"
+  },
+  "devDependencies": {
+    "vite": "^5.3.4",
+    "@vitejs/plugin-react": "^4.3.1"
   }
 }
