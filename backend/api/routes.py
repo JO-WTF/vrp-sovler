@@ -19,6 +19,12 @@ router = APIRouter(prefix="/api")
 RUNS: dict[str, dict[str, Any]] = {}
 RUN_TASKS: dict[str, asyncio.Task[None]] = {}
 
+CATALOG = {
+    "vrplib": ["A-n32-k5", "A-n37-k6", "B-n35-k5"],
+    "solomon": ["C101", "R101", "RC101"],
+    "homberger": ["C1_2_1", "R1_2_1", "RC1_2_1"],
+}
+
 
 def _loader(dataset: str):
     if dataset == "vrplib":
@@ -32,41 +38,64 @@ def _loader(dataset: str):
 
 @router.get("/datasets")
 def datasets() -> dict:
-    return {"supported": ["vrplib", "solomon", "homberger"]}
+    return {"supported": list(CATALOG), "instances": CATALOG}
 
 
 @router.post("/runs")
 async def create_run(config: ExperimentConfig) -> dict:
     run_id = str(uuid.uuid4())
-    RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump()}
+    RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": []}
+
+    async def emit(event_type: str, payload: dict[str, Any]) -> None:
+        evt = {"type": event_type, "payload": payload}
+        RUNS[run_id]["events"].append(evt)
+        await bus.publish(run_id, evt)
 
     async def _work() -> None:
         try:
+            await emit("run_started", {"run_id": run_id})
             loader = _loader(config.dataset)
-            problems = [loader.load(name) for name in config.instances]
-            solver = PyVRPSolver()
+            await emit("dataset_prepare_started", {"dataset": config.dataset})
 
+            problems = []
+            for name in config.instances:
+                await emit("download_started", {"instance": name})
+                try:
+                    problem = loader.load(name)
+                    await emit("download_succeeded", {"instance": name})
+                    problems.append(problem)
+                except Exception as exc:  # noqa: BLE001
+                    await emit("download_failed", {"instance": name, "error": str(exc)})
+
+            if not problems:
+                RUNS[run_id]["status"] = "failed"
+                await emit("run_failed", {"error": "No instance loaded successfully"})
+                return
+
+            solver = PyVRPSolver()
             for problem in problems:
+                await emit("solve_started", {"instance": problem.name})
                 result = solver.solve(
                     problem,
                     time_limit_s=config.time_limit_s,
                     population_size=config.population_size,
-                    on_iteration=lambda s: asyncio.create_task(bus.publish(run_id, {"type": "iteration", "payload": to_point(s)})),
+                    on_iteration=lambda s: asyncio.create_task(emit("iteration", to_point(s))),
                 )
                 RUNS[run_id]["results"].append(result)
-                await bus.publish(run_id, {"type": "instance_done", "payload": result})
+                await emit("solve_succeeded", result)
 
             write_results(RUNS[run_id]["results"], f"results/{run_id}.csv")
             RUNS[run_id]["status"] = "done"
-            await bus.publish(run_id, {"type": "run_done", "payload": {"run_id": run_id}})
+            await emit("results_saved", {"path": f"results/{run_id}.csv"})
+            await emit("run_done", {"run_id": run_id})
         except asyncio.CancelledError:
             RUNS[run_id]["status"] = "stopped"
-            await bus.publish(run_id, {"type": "run_stopped", "payload": {"run_id": run_id}})
+            await emit("run_stopped", {"run_id": run_id})
             raise
         except Exception as exc:  # noqa: BLE001
             RUNS[run_id]["status"] = "failed"
             RUNS[run_id]["error"] = str(exc)
-            await bus.publish(run_id, {"type": "run_failed", "payload": {"error": str(exc)}})
+            await emit("run_failed", {"error": str(exc)})
 
     task = asyncio.create_task(_work())
     RUN_TASKS[run_id] = task
