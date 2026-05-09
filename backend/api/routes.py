@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from typing import Any
 
@@ -15,6 +16,7 @@ from backend.data.vrplib_loader import VRPLibLoader
 from backend.runner.batch_run import write_results
 from backend.solvers.pyvrp_solver import PyVRPSolver
 
+logger = logging.getLogger("backend.api.routes")
 router = APIRouter(prefix="/api")
 RUNS: dict[str, dict[str, Any]] = {}
 RUN_TASKS: dict[str, asyncio.Task[None]] = {}
@@ -27,26 +29,31 @@ CATALOG = {
 
 
 def _loader(dataset: str):
+    logger.info("select loader dataset=%s", dataset)
     if dataset == "vrplib":
         return VRPLibLoader()
     if dataset == "solomon":
         return SolomonLoader()
     if dataset == "homberger":
         return HombergerLoader()
+    logger.error("unsupported dataset=%s", dataset)
     raise HTTPException(status_code=400, detail=f"Unsupported dataset: {dataset}")
 
 
 @router.get("/datasets")
 def datasets() -> dict:
+    logger.info("list datasets")
     return {"supported": list(CATALOG), "instances": CATALOG}
 
 
 @router.post("/runs")
 async def create_run(config: ExperimentConfig) -> dict:
     run_id = str(uuid.uuid4())
+    logger.info("create run run_id=%s dataset=%s instances=%s", run_id, config.dataset, config.instances)
     RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": []}
 
     async def emit(event_type: str, payload: dict[str, Any]) -> None:
+        logger.info("run_id=%s event=%s payload=%s", run_id, event_type, payload)
         evt = {"type": event_type, "payload": payload}
         RUNS[run_id]["events"].append(evt)
         await bus.publish(run_id, evt)
@@ -65,6 +72,7 @@ async def create_run(config: ExperimentConfig) -> dict:
                     await emit("download_succeeded", {"instance": name})
                     problems.append(problem)
                 except Exception as exc:  # noqa: BLE001
+                    logger.exception("download failed run_id=%s instance=%s", run_id, name)
                     await emit("download_failed", {"instance": name, "error": str(exc)})
 
             if not problems:
@@ -88,14 +96,17 @@ async def create_run(config: ExperimentConfig) -> dict:
             RUNS[run_id]["status"] = "done"
             await emit("results_saved", {"path": f"results/{run_id}.csv"})
             await emit("run_done", {"run_id": run_id})
+            logger.info("run completed run_id=%s", run_id)
         except asyncio.CancelledError:
             RUNS[run_id]["status"] = "stopped"
             await emit("run_stopped", {"run_id": run_id})
+            logger.warning("run stopped run_id=%s", run_id)
             raise
         except Exception as exc:  # noqa: BLE001
             RUNS[run_id]["status"] = "failed"
             RUNS[run_id]["error"] = str(exc)
             await emit("run_failed", {"error": str(exc)})
+            logger.exception("run failed run_id=%s", run_id)
 
     task = asyncio.create_task(_work())
     RUN_TASKS[run_id] = task
@@ -104,8 +115,10 @@ async def create_run(config: ExperimentConfig) -> dict:
 
 @router.post("/runs/{run_id}/stop")
 def stop_run(run_id: str) -> dict:
+    logger.info("stop requested run_id=%s", run_id)
     task = RUN_TASKS.get(run_id)
     if task is None:
+        logger.error("stop failed, run not found run_id=%s", run_id)
         raise HTTPException(status_code=404, detail="Run not found")
     if not task.done():
         task.cancel()
@@ -114,6 +127,8 @@ def stop_run(run_id: str) -> dict:
 
 @router.get("/runs/{run_id}")
 def run_status(run_id: str) -> dict:
+    logger.info("query run status run_id=%s", run_id)
     if run_id not in RUNS:
+        logger.error("run status not found run_id=%s", run_id)
         raise HTTPException(status_code=404, detail="Run not found")
     return RUNS[run_id]
