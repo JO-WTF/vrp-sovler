@@ -15,9 +15,12 @@ class EventBus:
         return queue
 
     async def publish(self, channel: str, payload: dict[str, Any]) -> None:
-        for queue in self._channels[channel]:
+        for queue in list(self._channels[channel]):
             await queue.put(payload)
 
     def unsubscribe(self, channel: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         if queue in self._channels[channel]:
             self._channels[channel].remove(queue)
+
+    def clear(self) -> None:
+        self._channels.clear()

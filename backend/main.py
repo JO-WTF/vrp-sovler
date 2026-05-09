@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routes import router as api_router
-from backend.api.websocket import router as ws_router
+from backend.api.websocket import bus, router as ws_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,3 +27,9 @@ app.include_router(ws_router)
 def healthz() -> dict:
     logging.getLogger("backend.health").info("healthz ping")
     return {"status": "ok"}
+
+
+@app.on_event("shutdown")
+def shutdown_cleanup() -> None:
+    logging.getLogger("backend.shutdown").info("clear event bus subscriptions")
+    bus.clear()
