@@ -29,7 +29,7 @@ export default function ExperimentPage() {
   }, [wsEvents]);
 
   const status = mergedEvents.at(-1)?.type || 'idle';
-  const results = mergedEvents.filter((e) => e.type === 'solve_succeeded').map((e) => e.payload);
+  const result = [...mergedEvents].reverse().find((e) => e.type === 'solve_succeeded')?.payload;
 
   const start = async () => {
     if (!instance) return message.warning('请选择实例');
@@ -51,6 +51,6 @@ export default function ExperimentPage() {
     <Space><Tag color="blue">Run: {runId || 'N/A'}</Tag><Tag color="purple">Status: {status}</Tag><Tag color="green">Events: {mergedEvents.length}</Tag></Space>
     <ConvergenceChart events={mergedEvents} />
     <Card size="small" title="运行事件"><Timeline items={timelineItems} /></Card>
-    <Card size="small" title="最终路线结果"><List dataSource={results} renderItem={(r) => <List.Item style={{ display: 'block', width: '100%' }}><div>{r.instance}: {JSON.stringify(r.routes || [])}</div><RouteMap result={r} /></List.Item>} /></Card>
+    <Card size="small" title="最终路线结果">{result ? <List dataSource={[result]} renderItem={(r) => <List.Item style={{ display: 'block', width: '100%' }}><div>{r.instance}: {JSON.stringify(r.routes || [])}</div><RouteMap result={r} /></List.Item>} /> : "暂无"}</Card>
   </Space></Card></div>;
 }

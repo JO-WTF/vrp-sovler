@@ -47,7 +47,7 @@ def datasets() -> dict:
 async def create_run(config: ExperimentConfig) -> dict:
     run_id = str(uuid.uuid4())
     logger.info("create run run_id=%s dataset=%s instance=%s", run_id, config.dataset, config.instance)
-    RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": [], "next_seq": 1}
+    RUNS[run_id] = {"status": "running", "result": None, "config": config.model_dump(), "events": [], "next_seq": 1}
 
     async def emit(event_type: str, payload: dict[str, Any]) -> None:
         logger.info("run_id=%s event=%s payload=%s", run_id, event_type, payload)
@@ -62,7 +62,6 @@ async def create_run(config: ExperimentConfig) -> dict:
         loader = _loader(config.dataset)
         await emit("dataset_prepare_started", {"dataset": config.dataset})
 
-        problems = []
         await emit("download_started", {"instance": config.instance})
         try:
             problem = loader.load(config.instance)
@@ -82,10 +81,10 @@ async def create_run(config: ExperimentConfig) -> dict:
             population_size=config.population_size,
             on_iteration=lambda s: emit("iteration", to_point(s)),
         )
-        RUNS[run_id]["results"].append(result)
+        RUNS[run_id]["result"] = result
         await emit("solve_succeeded", result)
         RUNS[run_id]["status"] = "done"
-        await emit("results_ready", {"count": len(RUNS[run_id]["results"])})
+        await emit("results_ready", {"count": 1})
         await emit("run_done", {"run_id": run_id})
         logger.info("run completed run_id=%s", run_id)
     except Exception as exc:  # noqa: BLE001
