@@ -7,7 +7,7 @@ from backend.api.websocket import router as ws_router
 app = FastAPI(title="VRP Lab")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:7998", "http://127.0.0.1:7998"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
