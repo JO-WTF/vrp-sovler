@@ -17,25 +17,19 @@ export default function ExperimentPage() {
   const [busy, setBusy] = useState(false);
   const [timeLimit, setTimeLimit] = useState(5);
   const [population, setPopulation] = useState(80);
-  const [snapshot, setSnapshot] = useState({ events: [], results: [], status: 'idle' });
   const wsEvents = useRunSocket(runId);
 
   useEffect(() => { api.get('/api/datasets').then((r) => { setCatalog(r.data.instances || {}); if (!instance && r.data.instances?.vrplib?.length) setInstance(r.data.instances.vrplib[0]); }).catch(() => message.error('无法加载数据集列表')); }, []);
   useEffect(() => { const options = catalog[dataset] || []; if (options.length) setInstance(options[0]); }, [dataset]);
 
-  useEffect(() => {
-    if (!runId) return;
-    const timer = setInterval(async () => {
-      try { const { data } = await api.get(`/api/runs/${runId}`); setSnapshot(data); } catch {}
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [runId]);
-
   const mergedEvents = useMemo(() => {
     const map = new Map();
-    [...(snapshot.events || []), ...wsEvents].forEach((e) => map.set(e.seq ?? `${e.type}-${JSON.stringify(e.payload)}`, e));
+    (wsEvents || []).forEach((e) => map.set(e.seq ?? `${e.type}-${JSON.stringify(e.payload)}`, e));
     return [...map.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
-  }, [snapshot.events, wsEvents]);
+  }, [wsEvents]);
+
+  const status = mergedEvents.at(-1)?.type || 'idle';
+  const results = mergedEvents.filter((e) => e.type === 'solve_succeeded').map((e) => e.payload);
 
   const start = async () => {
     if (!instance) return message.warning('请选择实例');
@@ -54,9 +48,9 @@ export default function ExperimentPage() {
       <Col span={4}><InputNumber min={1} addonBefore="Time(s)" value={timeLimit} onChange={(v) => setTimeLimit(v || 5)} style={{ width: '100%' }} /></Col>
       <Col span={4}><InputNumber min={10} addonBefore="Pop" value={population} onChange={(v) => setPopulation(v || 80)} style={{ width: '100%' }} /></Col>
       <Col span={2}><Button type="primary" onClick={start} loading={busy} block>Start</Button></Col></Row>
-    <Space><Tag color="blue">Run: {runId || 'N/A'}</Tag><Tag color="purple">Status: {snapshot.status || 'idle'}</Tag><Tag color="green">Events: {mergedEvents.length}</Tag></Space>
+    <Space><Tag color="blue">Run: {runId || 'N/A'}</Tag><Tag color="purple">Status: {status}</Tag><Tag color="green">Events: {mergedEvents.length}</Tag></Space>
     <ConvergenceChart events={mergedEvents} />
     <Card size="small" title="运行事件"><Timeline items={timelineItems} /></Card>
-    <Card size="small" title="最终路线结果"><List dataSource={snapshot.results || []} renderItem={(r) => <List.Item style={{ display: 'block', width: '100%' }}><div>{r.instance}: {JSON.stringify(r.routes || [])}</div><RouteMap result={r} /></List.Item>} /></Card>
+    <Card size="small" title="最终路线结果"><List dataSource={results} renderItem={(r) => <List.Item style={{ display: 'block', width: '100%' }}><div>{r.instance}: {JSON.stringify(r.routes || [])}</div><RouteMap result={r} /></List.Item>} /></Card>
   </Space></Card></div>;
 }

@@ -13,10 +13,10 @@ from backend.data.homberger_loader import HombergerLoader
 from backend.data.solomon_loader import SolomonLoader
 from backend.data.vrplib_loader import VRPLibLoader
 from backend.solvers.pyvrp_solver import PyVRPSolver
+from backend.state import RUNS
 
 logger = logging.getLogger("backend.api.routes")
 router = APIRouter(prefix="/api")
-RUNS: dict[str, dict[str, Any]] = {}
 
 CATALOG = {
     "vrplib": ["A-n32-k5", "A-n37-k6", "B-n35-k5"],
