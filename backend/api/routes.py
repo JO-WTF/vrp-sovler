@@ -12,7 +12,6 @@ from backend.analysis.convergence import to_point
 from backend.data.homberger_loader import HombergerLoader
 from backend.data.solomon_loader import SolomonLoader
 from backend.data.vrplib_loader import VRPLibLoader
-from backend.runner.batch_run import write_results
 from backend.solvers.pyvrp_solver import PyVRPSolver
 
 logger = logging.getLogger("backend.api.routes")
@@ -47,7 +46,7 @@ def datasets() -> dict:
 @router.post("/runs")
 async def create_run(config: ExperimentConfig) -> dict:
     run_id = str(uuid.uuid4())
-    logger.info("create run run_id=%s dataset=%s instances=%s", run_id, config.dataset, config.instances)
+    logger.info("create run run_id=%s dataset=%s instance=%s", run_id, config.dataset, config.instance)
     RUNS[run_id] = {"status": "running", "results": [], "config": config.model_dump(), "events": [], "next_seq": 1}
 
     async def emit(event_type: str, payload: dict[str, Any]) -> None:
@@ -64,36 +63,29 @@ async def create_run(config: ExperimentConfig) -> dict:
         await emit("dataset_prepare_started", {"dataset": config.dataset})
 
         problems = []
-        for name in config.instances:
-            await emit("download_started", {"instance": name})
-            try:
-                problem = loader.load(name)
-                await emit("download_succeeded", {"instance": name})
-                problems.append(problem)
-            except Exception as exc:  # noqa: BLE001
-                logger.exception("download failed run_id=%s instance=%s", run_id, name)
-                await emit("download_failed", {"instance": name, "error": str(exc)})
-
-        if not problems:
+        await emit("download_started", {"instance": config.instance})
+        try:
+            problem = loader.load(config.instance)
+            await emit("download_succeeded", {"instance": config.instance})
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("download failed run_id=%s instance=%s", run_id, config.instance)
             RUNS[run_id]["status"] = "failed"
-            await emit("run_failed", {"error": "No instance loaded successfully"})
+            await emit("download_failed", {"instance": config.instance, "error": str(exc)})
+            await emit("run_failed", {"error": "Instance load failed"})
             return {"run_id": run_id}
 
         solver = PyVRPSolver()
-        for problem in problems:
-            await emit("solve_started", {"instance": problem.name})
-            result = await solver.solve(
-                problem,
-                time_limit_s=config.time_limit_s,
-                population_size=config.population_size,
-                on_iteration=lambda s: emit("iteration", to_point(s)),
-            )
-            RUNS[run_id]["results"].append(result)
-            await emit("solve_succeeded", result)
-
-        write_results(RUNS[run_id]["results"], f"results/{run_id}.csv")
+        await emit("solve_started", {"instance": problem.name})
+        result = await solver.solve(
+            problem,
+            time_limit_s=config.time_limit_s,
+            population_size=config.population_size,
+            on_iteration=lambda s: emit("iteration", to_point(s)),
+        )
+        RUNS[run_id]["results"].append(result)
+        await emit("solve_succeeded", result)
         RUNS[run_id]["status"] = "done"
-        await emit("results_saved", {"path": f"results/{run_id}.csv"})
+        await emit("results_ready", {"count": len(RUNS[run_id]["results"])})
         await emit("run_done", {"run_id": run_id})
         logger.info("run completed run_id=%s", run_id)
     except Exception as exc:  # noqa: BLE001

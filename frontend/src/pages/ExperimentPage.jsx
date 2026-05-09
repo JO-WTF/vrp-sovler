@@ -40,7 +40,7 @@ export default function ExperimentPage() {
   const start = async () => {
     if (!instance) return message.warning('请选择实例');
     setBusy(true);
-    try { const { data } = await api.post('/api/runs', { dataset, instances: [instance], time_limit_s: timeLimit, population_size: population }); setRunId(data.run_id); message.success('任务已启动'); }
+    try { const { data } = await api.post('/api/runs', { dataset, instance, time_limit_s: timeLimit, population_size: population }); setRunId(data.run_id); message.success('任务已启动'); }
     catch (e) { message.error(e?.response?.data?.detail || e.message || '启动失败'); }
     finally { setBusy(false); }
   };
