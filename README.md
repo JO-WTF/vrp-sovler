@@ -1,6 +1,15 @@
 # VRP Lab
 
-## 启动
+## 一键本地运行
+
+```bash
+bash scripts/run_local.sh
+```
+
+- Backend: `http://0.0.0.0:8082`
+- Frontend: `http://0.0.0.0:7998`
+
+## 手动启动
 
 ### Backend (0.0.0.0:8082)
 ```bash
@@ -22,12 +31,3 @@ npm run dev
 - `POST /api/runs/{run_id}/stop`
 - `GET /api/runs/{run_id}`
 - `WS /ws/{run_id}`
-
-## 当前能力
-- 统一问题结构（CVRP/CVRPTW）。
-- 多数据源加载器骨架（vrplib/Solomon/Homberger）。
-- 批量运行结果落盘 CSV。
-- WebSocket 推送迭代事件，前端实时收敛曲线。
-
-## 说明
-当前 `PyVRPSolver` 仍为占位循环，下一步应替换为真实 PyVRP 建模与 callback 事件上报。
