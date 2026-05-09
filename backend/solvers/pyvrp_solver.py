@@ -33,12 +33,17 @@ class PyVRPSolver:
             await asyncio.sleep(0.03)
 
         routes = self._mock_routes(problem)
+        locations = {0: [problem.depot.x, problem.depot.y]}
+        for c in problem.customers:
+            locations[c.idx] = [c.x, c.y]
+
         return {
             "instance": problem.name,
             "objective": round(best, 3),
             "runtime_s": round(time.perf_counter() - start, 3),
             "vehicles": len(routes),
             "routes": routes,
+            "locations": locations,
         }
 
     @staticmethod

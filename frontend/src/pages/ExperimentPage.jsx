@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Button, Card, Col, InputNumber, List, message, Row, Select, Space, Tag, Timeline, Typography } from 'antd';
+import RouteMap from '../components/RouteMap';
 import ConvergenceChart from '../charts/ConvergenceChart';
 import { useRunSocket } from '../hooks/useRunSocket';
 
@@ -56,6 +57,6 @@ export default function ExperimentPage() {
     <Space><Tag color="blue">Run: {runId || 'N/A'}</Tag><Tag color="purple">Status: {snapshot.status || 'idle'}</Tag><Tag color="green">Events: {mergedEvents.length}</Tag></Space>
     <ConvergenceChart events={mergedEvents} />
     <Card size="small" title="运行事件"><Timeline items={timelineItems} /></Card>
-    <Card size="small" title="最终路线结果"><List dataSource={snapshot.results || []} renderItem={(r) => <List.Item>{r.instance}: {JSON.stringify(r.routes || [])}</List.Item>} /></Card>
+    <Card size="small" title="最终路线结果"><List dataSource={snapshot.results || []} renderItem={(r) => <List.Item style={{ display: 'block', width: '100%' }}><div>{r.instance}: {JSON.stringify(r.routes || [])}</div><RouteMap result={r} /></List.Item>} /></Card>
   </Space></Card></div>;
 }
